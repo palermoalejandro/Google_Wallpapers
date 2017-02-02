@@ -14,30 +14,30 @@ import sys
 import requests
 import json
 
-global log = []
-
-
 def delete_old_files(filecount,downloaded):
-	global log
-	if file_count > 0:
+
+	logging.getLogger(__name__)
+	if filecount > 0:
 		#delete the least recent downloaded files
-		x = len(downloaded) - file_count 
+		x = len(downloaded) - filecount 
 		if x > 0:
 			for i in range(x-1):
 				try:
 					os.remove(downloaded[i])
 					downloaded.pop(i)
 				except:
-					log.append('[ERROR]: imposible borrar archivo %s', downloadad[i])
+					logging.error('[ERROR]: imposible borrar archivo %s', downloadad[i])
  
 
 def download_file(url, file_path):
 
+	logging.getLogger(__name__)
 	response = requests.get(url, stream=True)
 	try :
 		with open(file_path, 'wb') as out_file:
 		    shutil.copyfileobj(response.raw, out_file)
 		del response
+		logging.debug('File Downloaded: %s', file_path)
 		return True
 	except:
 		return False
@@ -45,6 +45,9 @@ def download_file(url, file_path):
 
 
 def download_wallpaper(file_path,downloaded):
+	
+	logging.getLogger(__name__)
+
 	req = requests.get('https://clients3.google.com/cast/chromecast/home')
 	soup = BeautifulSoup(req.text, 'html.parser')
 	scripts = soup.find_all('script')
@@ -62,18 +65,17 @@ def download_wallpaper(file_path,downloaded):
 	link = link.replace("com\\", "com")	
 	link = 'https://' + link + '=s1280-w1920-h1080-p-k-no-nd-mv'
 	
-	#print(link)
-	#req2 = requests.get(link)
+	
 	file_name = datetime.now().strftime("%Y-%m-%d %H-%M-%S")+'.png'
-
+	logging.debug('Downloading file : %s as %s', link, file_name)
 
 	if download_file(link, file_path + file_name):
 		downloaded.append(file_path + file_name)
 
 def main():
 	#get config
-	global log
-	log.append('Service started: %s', )
+	FORMAT = '%(asctime)-15s %(message)s'
+	
 	config_path = "./config.json"
 	with open(config_path, 'r') as configfile:
 		config = json.loads(configfile.read())
@@ -81,18 +83,24 @@ def main():
 		file_path = config['FILE_PATH']
 		sleep_time = config['SLEEP_TIME']
 		log_path = config['LOG_PATH']
+	
 
+	logging.basicConfig(format=FORMAT,filename='example.log',level=logging.INFO)
+	logging.info('Service started: %s', )
 	downloaded = []	
 	
-	while(1):
-		#get new wallpapers from google
-		download_wallpaper(file_path, downloaded)
+	try:
+		while True:
+			#get new wallpapers from google
+			download_wallpaper(file_path, downloaded)
 
-		#delete old wallpaper files
-		delete_old_files(filecount, downloaded)
+			#delete old wallpaper files
+			delete_old_files(filecount, downloaded)
 
-		#sleep until next loop
-		time.sleep(sleep_time)
+			#sleep until next loop
+			time.sleep(sleep_time)
+	except KeyboardInterrupt:
+		logging.info('Service Ended: KeyboardInterrupt')
 
 
 
